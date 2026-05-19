@@ -1,0 +1,387 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/ui/glass_container.dart';
+import '../payments/send_payment_screen.dart';
+import 'vault_provider.dart';
+
+class DashboardScreen extends ConsumerWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final vaultsAsync = ref.watch(vaultProvider);
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.all_inclusive, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 8),
+            const Text('Suiver', style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.sync_rounded),
+            tooltip: 'Sync Offline Data',
+            onPressed: () {
+              // TODO: Trigger sync manually
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Syncing with Sui Network...')),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () {},
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: Stack(
+        children: [
+          // Background accents
+          Positioned(
+            top: -100,
+            left: -50,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                boxShadow: [
+                  BoxShadow(color: Theme.of(context).colorScheme.secondary.withOpacity(0.2), blurRadius: 100),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 200,
+            right: -100,
+            child: Container(
+              width: 250,
+              height: 250,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                boxShadow: [
+                  BoxShadow(color: Theme.of(context).colorScheme.primary.withOpacity(0.2), blurRadius: 100),
+                ],
+              ),
+            ),
+          ),
+          
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Premium Balance Card
+                  _buildBalanceCard(context),
+                  const SizedBox(height: 32),
+                  
+                  // Vaults Section
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Your Vaults',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      TextButton(
+                        onPressed: () => _showCreateVaultDialog(context, ref),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.add, size: 18),
+                            const SizedBox(width: 4),
+                            Text('Add Vault', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  vaultsAsync.when(
+                    data: (vaults) => vaults.isEmpty 
+                      ? const Center(child: Padding(
+                          padding: EdgeInsets.all(20.0),
+                          child: Text('No vaults yet. Create one to start saving!', style: TextStyle(color: Colors.white54)),
+                        ))
+                      : SizedBox(
+                          height: 140,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: vaults.length,
+                            separatorBuilder: (context, index) => const SizedBox(width: 16),
+                            itemBuilder: (context, index) {
+                              final vault = vaults[index];
+                              final colors = [
+                                const Color(0xFF00B0FF), // Cyber Blue
+                                const Color(0xFFD500F9), // Neon Purple
+                                const Color(0xFF00E676), // Spring Green
+                                const Color(0xFFFF3D00), // Deep Orange
+                              ];
+                              final icons = [
+                                Icons.shield_outlined,
+                                Icons.trending_up,
+                                Icons.account_balance_wallet_outlined,
+                                Icons.savings_outlined,
+                              ];
+                              
+                              return SizedBox(
+                                width: 160,
+                                child: _buildVaultCard(
+                                  context,
+                                  vault.name,
+                                  '\$${vault.balance.toStringAsFixed(2)}',
+                                  colors[index % colors.length],
+                                  icons[index % icons.length],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (err, stack) => Center(child: Text('Error: $err', style: const TextStyle(color: Colors.red))),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Recent Transactions
+                  Text(
+                    'Recent Transactions',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  GlassContainer(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: 3,
+                      separatorBuilder: (context, index) => const Divider(color: Colors.white10, height: 1),
+                      itemBuilder: (context, index) {
+                        final names = ['Alice Johnson', 'Bob Smith', 'Charlie Davis'];
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                          leading: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
+                            ),
+                            child: Icon(Icons.arrow_upward_rounded, color: Theme.of(context).colorScheme.primary, size: 20),
+                          ),
+                          title: Text(names[index], style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
+                          subtitle: Text('May ${13 - index}, 2026', style: const TextStyle(color: Colors.white54, fontSize: 13)),
+                          trailing: Text(
+                            '-\$${(index + 1) * 10}.00',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBalanceCard(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF1E1E1E),
+            const Color(0xFF0F0F0F),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+          BoxShadow(
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+            blurRadius: 20,
+            spreadRadius: -5,
+          ),
+        ],
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      padding: const EdgeInsets.all(28.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Total Balance',
+                style: TextStyle(color: Colors.white60, fontSize: 15, fontWeight: FontWeight.w500),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.wifi, size: 14, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 4),
+                    Text('Online', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              )
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            '\$1,250.00',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 42,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -1,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            '1,250.00 USDC',
+            style: TextStyle(color: Colors.white54, fontSize: 14),
+          ),
+          const SizedBox(height: 32),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildActionButton(context, Icons.send_rounded, 'Send', () {
+                Navigator.push(context, PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) => const SendPaymentScreen(),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    return SlideTransition(
+                      position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero).animate(
+                        CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+                      ),
+                      child: child,
+                    );
+                  },
+                ));
+              }),
+              _buildActionButton(context, Icons.qr_code_scanner_rounded, 'Receive', () {}),
+              _buildActionButton(context, Icons.swap_horiz_rounded, 'Swap', () {}),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton(BuildContext context, IconData icon, String label, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.05),
+              border: Border.all(color: Colors.white.withOpacity(0.1)),
+            ),
+            child: Icon(icon, color: Colors.white, size: 26),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600, fontSize: 13)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVaultCard(BuildContext context, String title, String amount, Color accentColor, IconData icon) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            accentColor.withOpacity(0.15),
+            Colors.transparent,
+          ],
+        ),
+        border: Border.all(color: accentColor.withOpacity(0.3)),
+        color: const Color(0xFF121212),
+      ),
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: accentColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: accentColor, size: 20),
+          ),
+          const SizedBox(height: 16),
+          Text(title, style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 4),
+          Text(amount, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+  void _showCreateVaultDialog(BuildContext context, WidgetRef ref) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: Colors.white.withOpacity(0.1))),
+        title: const Text('Create New Vault', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: 'e.g. Rainy Day, New Car',
+            hintStyle: const TextStyle(color: Colors.white24),
+            enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Theme.of(context).colorScheme.primary)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                ref.read(vaultProvider.notifier).createVault(controller.text);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+  }
+}
