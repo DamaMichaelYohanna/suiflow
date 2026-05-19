@@ -1,8 +1,10 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 from routers import auth, payments, sync, vaults, tx
 from typing import List
+import traceback
 
 # Create DB tables
 Base.metadata.create_all(bind=engine)
@@ -16,6 +18,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def catch_exceptions_middleware(request, call_next):
+    try:
+        return await call_next(request)
+    except Exception as e:
+        tb = traceback.format_exc()
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e), "traceback": tb}
+        )
+
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
