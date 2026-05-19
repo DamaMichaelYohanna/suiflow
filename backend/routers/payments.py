@@ -99,17 +99,25 @@ def get_transaction_history(
         .all()
     )
     result = []
+    from datetime import datetime
     for t in txns:
         is_sender = t.sender_id == current_user.id
         counterpart = t.receiver if is_sender else t.sender
+        
+        c_name = "Unknown"
+        c_phone = None
+        if counterpart:
+            c_name = counterpart.full_name or counterpart.username or "Unknown"
+            c_phone = counterpart.phone_number
+            
         result.append(schemas.TransactionHistoryItem(
             id=t.id,
             direction="sent" if is_sender else "received",
-            counterpart_name=counterpart.full_name or counterpart.username if counterpart else "Unknown",
-            counterpart_phone=counterpart.phone_number if counterpart else None,
-            amount=t.amount,
-            status=t.status,
-            timestamp=t.timestamp,
+            counterpart_name=c_name,
+            counterpart_phone=c_phone,
+            amount=t.amount or 0.0,
+            status=t.status or "UNKNOWN",
+            timestamp=t.timestamp or datetime.utcnow(),
             sui_digest=t.sui_digest,
         ))
     return result
