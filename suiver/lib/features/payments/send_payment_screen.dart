@@ -71,6 +71,57 @@ class _SendPaymentScreenState extends ConsumerState<SendPaymentScreen>
     }
   }
 
+  void _showSuccessDialog(String title, String description) {
+    showDialog(
+      context: context,
+      builder: (context) => Center(
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: GlassContainer(
+            padding: const EdgeInsets.all(32),
+            borderRadius: 32,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.check_rounded,
+                      size: 48, color: Theme.of(context).colorScheme.primary),
+                ),
+                const SizedBox(height: 24),
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white)),
+                const SizedBox(height: 8),
+                Text(description,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white60)),
+                const SizedBox(height: 32),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context); // Close dialog
+                    Navigator.pop(context); // Go back to dashboard
+                  },
+                  child: const Text('Back to Home'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
   void _sendPayment() async {
     final auth = ref.read(authProvider);
     
@@ -81,67 +132,51 @@ class _SendPaymentScreenState extends ConsumerState<SendPaymentScreen>
       return;
     }
 
+    final amount = double.tryParse(_amountController.text) ?? 0.0;
+    final split = _savingsPercentage > 0
+        ? {'savings': _savingsPercentage.toInt()}
+        : null;
+
     final payload = {
       'receiver_phone': _phoneController.text,
-      'amount': double.tryParse(_amountController.text) ?? 0.0,
-      'programmable_split': _savingsPercentage > 0
-          ? {'savings': _savingsPercentage.toInt()}
-          : null,
+      'amount': amount,
+      'programmable_split': split,
       'status': 'QUEUED',
       'timestamp': DateTime.now().toIso8601String(),
     };
 
-    // Store locally first (Offline-First)
-    await OfflineQueue.addTransaction(payload);
+    setState(() {
+      _isVerifying = true;
+    });
 
-    if (mounted) {
-      showDialog(
-        context: context,
-        builder: (context) => Center(
-          child: ScaleTransition(
-            scale: _scaleAnimation,
-            child: GlassContainer(
-              padding: const EdgeInsets.all(32),
-              borderRadius: 32,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withOpacity(0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.check_rounded,
-                        size: 48, color: Theme.of(context).colorScheme.primary),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text('Payment Queued',
-                      style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white)),
-                  const SizedBox(height: 8),
-                  const Text('Your transaction will sync shortly.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white60)),
-                  const SizedBox(height: 32),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context); // Close dialog
-                      Navigator.pop(context); // Go back to dashboard
-                    },
-                    child: const Text('Back to Home'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
+    try {
+      // Attempt live transaction broadcast
+      final dio = Dio(BaseOptions(
+        baseUrl: 'http://localhost:8000/api',
+        headers: auth.token != null ? {'Authorization': 'Bearer ${auth.token}'} : {},
+      ));
+      
+      await dio.post('/payments/send', data: {
+        'receiver_phone': _phoneController.text,
+        'amount': amount,
+        'programmable_split': split,
+      });
+
+      if (mounted) {
+        setState(() {
+          _isVerifying = false;
+        });
+        _showSuccessDialog('Payment Completed', 'Your payment was broadcast to the Sui network successfully.');
+      }
+    } catch (e) {
+      // Offline fallback: Save transaction to local Hive queue
+      await OfflineQueue.addTransaction(payload);
+      if (mounted) {
+        setState(() {
+          _isVerifying = false;
+        });
+        _showSuccessDialog('Payment Queued', 'You are offline or the server is unreachable. Transaction has been queued to sync automatically.');
+      }
     }
   }
 

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/ui/glass_container.dart';
 import '../payments/send_payment_screen.dart';
 import 'vault_provider.dart';
+import '../../core/network/api_client.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -25,11 +26,20 @@ class DashboardScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.sync_rounded),
             tooltip: 'Sync Offline Data',
-            onPressed: () {
-              // TODO: Trigger sync manually
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Syncing with Sui Network...')),
-              );
+            onPressed: () async {
+              try {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Syncing offline transactions with Sui Network...')),
+                );
+                await ref.read(apiClientProvider).syncOfflineQueue();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Offline sync completed successfully!'), backgroundColor: Colors.green),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Sync failed: $e'), backgroundColor: Colors.redAccent),
+                );
+              }
             },
           ),
           IconButton(
