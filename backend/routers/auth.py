@@ -115,3 +115,14 @@ def lookup_user(query: str, db: Session = Depends(database.get_db)):
         full_name=user.full_name,
         wallet_address=user.wallet.address if user.wallet else None
     )
+
+@router.get("/balance")
+def get_balance(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    """
+    Fetch the actual SUI balance for the authenticated user.
+    """
+    if not current_user.wallet:
+        return {"balance": 0.0}
+    
+    balance = sui_client.get_sui_balance(current_user.wallet.address)
+    return {"balance": balance}

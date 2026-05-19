@@ -78,20 +78,25 @@ class DashboardScreen extends ConsumerWidget {
                 shape: BoxShape.circle,
                 color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                 boxShadow: [
-                  BoxShadow(color: Theme.of(context).colorScheme.primary.withOpacity(0.2), blurRadius: 100),
-                ],
-              ),
-            ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF001F3F), Color(0xFF000000)],
+            stops: [0.0, 0.4],
           ),
-          
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Premium Balance Card
-                  _buildBalanceCard(context),
+                  const SizedBox(height: 10),
+                  _buildBalanceCard(context, ref, balanceState),
                   const SizedBox(height: 32),
                   
                   // Vaults Section
@@ -103,12 +108,12 @@ class DashboardScreen extends ConsumerWidget {
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       TextButton(
-                        onPressed: () => _showCreateVaultDialog(context, ref),
+                        onPressed: () {},
                         child: Row(
                           children: [
                             const Icon(Icons.add, size: 18),
                             const SizedBox(width: 4),
-                            Text('Add Vault', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)),
+                            Text('Add', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
@@ -161,9 +166,18 @@ class DashboardScreen extends ConsumerWidget {
                   const SizedBox(height: 32),
 
                   // Recent Transactions
-                  Text(
-                    'Recent Transactions',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Recent Transactions',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      TextButton(
+                        onPressed: () {},
+                        child: const Text('View All', style: TextStyle(color: Colors.white54)),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   ref.watch(transactionProvider).when(

@@ -100,6 +100,25 @@ class SuiClientService:
         
         print(f"[SUI SDK CLIENT] Registered user {phone_number} on-chain. Digest: {res.result_data.digest}")
 
+    def get_sui_balance(self, wallet_address: str) -> float:
+        """
+        Fetches the total SUI balance for the given address by summing all SUI coins.
+        Returns the balance in SUI (not MIST).
+        """
+        if not client:
+            print("[SUI SDK CLIENT] Client not initialized, returning 0.0 balance.")
+            return 0.0
+            
+        try:
+            res = client.get_gas(SuiAddress(wallet_address))
+            if res.is_ok() and res.result_data.data:
+                total_mist = sum(int(coin.balance) for coin in res.result_data.data)
+                return total_mist / 1_000_000_000.0
+            return 0.0
+        except Exception as e:
+            print(f"[SUI SDK CLIENT] Failed to fetch balance for {wallet_address}: {e}")
+            return 0.0
+
     def build_sponsored_tx_bytes(
         self, 
         sender_address: str, 
