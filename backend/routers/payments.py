@@ -80,3 +80,36 @@ async def send_payment(
     )
 
     return history
+
+@router.get("/history", response_model=list[schemas.TransactionHistoryItem])
+def get_transaction_history(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+    limit: int = 20,
+):
+    """Return the authenticated user's sent and received transactions, newest first."""
+    txns = (
+        db.query(models.TransactionHistory)
+        .filter(
+            (models.TransactionHistory.sender_id == current_user.id) |
+            (models.TransactionHistory.receiver_id == current_user.id)
+        )
+        .order_by(models.TransactionHistory.timestamp.desc())
+        .limit(limit)
+        .all()
+    )
+    result = []
+    for t in txns:
+        is_sender = t.sender_id == current_user.id
+        counterpart = t.receiver if is_sender else t.sender
+        result.append(schemas.TransactionHistoryItem(
+            id=t.id,
+            direction="sent" if is_sender else "received",
+            counterpart_name=counterpart.full_name or counterpart.username if counterpart else "Unknown",
+            counterpart_phone=counterpart.phone_number if counterpart else None,
+            amount=t.amount,
+            status=t.status,
+            timestamp=t.timestamp,
+            sui_digest=t.sui_digest,
+        ))
+    return result

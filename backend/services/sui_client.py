@@ -43,14 +43,27 @@ class SuiClientService:
     def generate_wallet(self) -> dict:
         """
         Generates a new Sui Keypair using the pysui cryptographic suite.
-        Returns the derived address and the base64 serialized private key (keystring).
+        Returns the derived address (zero-padded to 66 chars) and the base64 serialized private key (keystring).
         """
         mnemonic, keypair = create_new_keypair(SignatureScheme.ED25519)
-        address = SuiAddress.from_bytes(keypair.to_bytes())
+
+        # Derive the canonical Sui address from the public key.
+        # We use the keypair's serialize() method to get the keystring and then
+        # re-derive the SuiAddress from it — this is the correct pysui pattern.
+        # Alternatively, keypair.public_key.address gives the raw hex.
+        raw_address = keypair.public_key.address  # returns hex string, may lack leading zero-padding
+
+        # Ensure it is always a properly zero-padded 64-char hex string prefixed with 0x
+        hex_part = raw_address.lstrip("0x").lstrip("0X")
+        padded_address = "0x" + hex_part.zfill(64)
+
+        print(f"[WALLET GEN] Generated address: {padded_address} (raw: {raw_address})")
+
         return {
-            "address": address.address,
+            "address": padded_address,
             "private_key": keypair.serialize()
         }
+
 
     def register_user_on_chain(self, phone_number: str, display_name: str, wallet_address: str):
         """

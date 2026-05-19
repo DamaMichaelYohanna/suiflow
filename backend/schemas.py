@@ -141,4 +141,15 @@ class UserLookupResponse(BaseModel):
     full_name: Optional[str] = None
     wallet_address: Optional[str] = None
 
+class TransactionHistoryItem(BaseModel):
+    id: int
+    direction: str          # "sent" | "received"
+    counterpart_name: str
+    counterpart_phone: Optional[str] = None
+    amount: float
+    status: str
+    timestamp: datetime
+    sui_digest: Optional[str] = None
 
+    class Config:
+        from_attributes = True

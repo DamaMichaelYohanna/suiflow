@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/ui/glass_container.dart';
 import '../payments/send_payment_screen.dart';
 import 'vault_provider.dart';
+import 'transaction_provider.dart';
 import '../../core/network/api_client.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -165,37 +166,75 @@ class DashboardScreen extends ConsumerWidget {
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
-                  GlassContainer(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: 3,
-                      separatorBuilder: (context, index) => const Divider(color: Colors.white10, height: 1),
-                      itemBuilder: (context, index) {
-                        final names = ['Alice Johnson', 'Bob Smith', 'Charlie Davis'];
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                          leading: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
-                            ),
-                            child: Icon(Icons.arrow_upward_rounded, color: Theme.of(context).colorScheme.primary, size: 20),
-                          ),
-                          title: Text(names[index], style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
-                          subtitle: Text('May ${13 - index}, 2026', style: const TextStyle(color: Colors.white54, fontSize: 13)),
-                          trailing: Text(
-                            '-\$${(index + 1) * 10}.00',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
-                          ),
-                        );
-                      },
+                  ref.watch(transactionProvider).when(
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (err, _) => Center(
+                      child: Text('Could not load transactions', style: const TextStyle(color: Colors.white54)),
                     ),
+                    data: (txns) => txns.isEmpty
+                      ? GlassContainer(
+                          padding: const EdgeInsets.all(24),
+                          child: Center(
+                            child: Column(
+                              children: [
+                                Icon(Icons.receipt_long_outlined, size: 40, color: Colors.white24),
+                                const SizedBox(height: 12),
+                                const Text('No transactions yet', style: TextStyle(color: Colors.white38)),
+                              ],
+                            ),
+                          ),
+                        )
+                      : GlassContainer(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: txns.length,
+                            separatorBuilder: (_, __) => const Divider(color: Colors.white10, height: 1),
+                            itemBuilder: (context, index) {
+                              final tx = txns[index];
+                              final isSent = tx.isSent;
+                              final primary = Theme.of(context).colorScheme.primary;
+                              final secondary = Theme.of(context).colorScheme.secondary;
+                              final color = isSent ? primary : secondary;
+                              final icon = isSent ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded;
+                              final sign = isSent ? '-' : '+';
+                              final date = '${tx.timestamp.day} ${_monthName(tx.timestamp.month)} ${tx.timestamp.year}';
+
+                              return ListTile(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                                leading: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: color.withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: color.withOpacity(0.3)),
+                                  ),
+                                  child: Icon(icon, color: color, size: 20),
+                                ),
+                                title: Text(
+                                  tx.counterpartName,
+                                  style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+                                ),
+                                subtitle: Text(
+                                  '$date  ·  ${tx.status}',
+                                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                                ),
+                                trailing: Text(
+                                  '$sign\$${tx.amount.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: isSent ? Colors.white : secondary,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                   ),
                   const SizedBox(height: 24),
+
                 ],
               ),
             ),

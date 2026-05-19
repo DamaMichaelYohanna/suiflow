@@ -104,91 +104,99 @@ class _SendPaymentScreenState extends ConsumerState<SendPaymentScreen>
       builder: (ctx) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         backgroundColor: const Color(0xFF16161E),
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Icon badge
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isSuccess
-                      ? const Color(0xFF00E676).withOpacity(0.15)
-                      : const Color(0xFF00B0FF).withOpacity(0.15),
-                  border: Border.all(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 380),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon badge
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isSuccess
+                        ? const Color(0xFF00E676).withOpacity(0.15)
+                        : const Color(0xFF00B0FF).withOpacity(0.15),
+                    border: Border.all(
+                      color: isSuccess
+                          ? const Color(0xFF00E676)
+                          : const Color(0xFF00B0FF),
+                      width: 2,
+                    ),
+                  ),
+                  child: Icon(
+                    isSuccess ? Icons.check_rounded : Icons.schedule_rounded,
+                    size: 40,
                     color: isSuccess
                         ? const Color(0xFF00E676)
                         : const Color(0xFF00B0FF),
-                    width: 2,
                   ),
                 ),
-                child: Icon(
-                  isSuccess ? Icons.check_rounded : Icons.schedule_rounded,
-                  size: 40,
-                  color: isSuccess
-                      ? const Color(0xFF00E676)
-                      : const Color(0xFF00B0FF),
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Title
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 10),
-              // Description
-              Text(
-                description,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.white60,
-                  height: 1.5,
-                ),
-              ),
-              // Digest chip (optional)
-              if (digest != null) ...[
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white12),
+                const SizedBox(height: 20),
+                // Title
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
-                  child: Text(
-                    'Digest: ${digest.substring(0, 16)}…',
-                    style: const TextStyle(color: Colors.white38, fontSize: 11, fontFamily: 'monospace'),
+                ),
+                const SizedBox(height: 10),
+                // Description
+                Text(
+                  description,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.white60,
+                    height: 1.5,
+                  ),
+                ),
+                // Digest chip (optional)
+                if (digest != null) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    child: Text(
+                      'Digest: ${digest.length > 16 ? digest.substring(0, 16) : digest}…',
+                      style: const TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11,
+                          fontFamily: 'monospace'),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 28),
+                // Action button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Back to Dashboard'),
                   ),
                 ),
               ],
-              const SizedBox(height: 28),
-              // Action button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);  // close dialog
-                    Navigator.pop(context); // back to dashboard
-                  },
-                  child: const Text('Back to Dashboard'),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
+
 
   void _sendPayment() async {
     final auth = ref.read(authProvider);
