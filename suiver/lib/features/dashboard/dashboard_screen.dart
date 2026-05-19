@@ -78,24 +78,20 @@ class DashboardScreen extends ConsumerWidget {
                 shape: BoxShape.circle,
                 color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                 boxShadow: [
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF001F3F), Color(0xFF000000)],
-            stops: [0.0, 0.4],
+                  BoxShadow(color: Theme.of(context).colorScheme.primary.withOpacity(0.2), blurRadius: 100),
+                ],
+              ),
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              physics: const BouncingScrollPhysics(),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 10),
+                  // Premium Balance Card
                   _buildBalanceCard(context, ref, balanceState),
                   const SizedBox(height: 32),
                   
