@@ -31,3 +31,39 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def run_migrations(engine):
+    from sqlalchemy import text
+    # Run column migrations to ensure older database schemas are upgraded
+    with engine.connect() as conn:
+        # Columns to ensure in 'users' table
+        user_columns = [
+            ("hashed_password", "VARCHAR"),
+            ("social_id", "VARCHAR"),
+            ("auth_method", "VARCHAR")
+        ]
+        for col_name, col_type in user_columns:
+            try:
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"))
+                conn.commit()
+                print(f"[MIGRATION] Added column users.{col_name}")
+            except Exception:
+                pass
+
+        # Columns to ensure in 'transaction_history' table
+        tx_columns = [
+            ("intent_id", "VARCHAR"),
+            ("tx_bytes", "VARCHAR"),
+            ("sponsor_signature", "VARCHAR"),
+            ("user_signature", "VARCHAR"),
+            ("gas_budget", "INTEGER"),
+            ("split_rules", "VARCHAR")
+        ]
+        for col_name, col_type in tx_columns:
+            try:
+                conn.execute(text(f"ALTER TABLE transaction_history ADD COLUMN {col_name} {col_type}"))
+                conn.commit()
+                print(f"[MIGRATION] Added column transaction_history.{col_name}")
+            except Exception:
+                pass
+

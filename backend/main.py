@@ -1,13 +1,14 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from database import engine, Base
+from database import engine, Base, run_migrations
 from routers import auth, payments, sync, vaults, tx
 from typing import List
 import traceback
 
-# Create DB tables
+# Create DB tables and execute any missing column migrations
 Base.metadata.create_all(bind=engine)
+run_migrations(engine)
 
 app = FastAPI(title="SuiFlow API", description="Offline-first Programmable Payments MVP on Sui")
 
