@@ -47,17 +47,16 @@ class SuiClientService:
         """
         mnemonic, keypair = create_new_keypair(SignatureScheme.ED25519)
 
-        # Derive the canonical Sui address from the public key.
-        # We use the keypair's serialize() method to get the keystring and then
-        # re-derive the SuiAddress from it — this is the correct pysui pattern.
-        # Alternatively, keypair.public_key.address gives the raw hex.
-        raw_address = keypair.public_key.address  # returns hex string, may lack leading zero-padding
+        # Derive the canonical Sui address using SuiAddress.from_bytes(keypair.to_bytes())
+        # which correctly hashes the scheme flag and public key.
+        from pysui.sui.sui_types.address import SuiAddress
+        raw_address = str(SuiAddress.from_bytes(keypair.to_bytes()))
 
         # Ensure it is always a properly zero-padded 64-char hex string prefixed with 0x
         hex_part = raw_address.lstrip("0x").lstrip("0X")
         padded_address = "0x" + hex_part.zfill(64)
 
-        print(f"[WALLET GEN] Generated address: {padded_address} (raw: {raw_address})")
+        print(f"[WALLET GEN] Generated address: {padded_address}")
 
         return {
             "address": padded_address,

@@ -50,9 +50,15 @@ class BalanceNotifier extends StateNotifier<BalanceState> {
       state = state.copyWith(balance: balance, isLoading: false);
     } on DioException catch (e) {
       print('[BALANCE Error] ${e.message}');
+      String errMsg = 'Failed to fetch balance';
+      if (e.response?.data is Map) {
+        errMsg = e.response?.data['detail'] ?? errMsg;
+      } else if (e.response?.data is String && (e.response?.data as String).isNotEmpty) {
+        errMsg = e.response?.data as String;
+      }
       state = state.copyWith(
         isLoading: false,
-        error: e.response?.data['detail'] ?? 'Failed to fetch balance',
+        error: errMsg,
       );
     } catch (e) {
       print('[BALANCE Error] $e');

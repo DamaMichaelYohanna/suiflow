@@ -4,6 +4,7 @@ import '../../core/ui/glass_container.dart';
 import '../payments/send_payment_screen.dart';
 import 'vault_provider.dart';
 import 'transaction_provider.dart';
+import 'balance_provider.dart';
 import '../../core/network/api_client.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -12,6 +13,7 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final vaultsAsync = ref.watch(vaultProvider);
+    final balanceState = ref.watch(balanceProvider);
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -254,7 +256,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildBalanceCard(BuildContext context) {
+  Widget _buildBalanceCard(BuildContext context, WidgetRef ref, BalanceState balanceState) {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
@@ -309,19 +311,33 @@ class DashboardScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 12),
-          const Text(
-            '\$1,250.00',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 42,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -1,
+          if (balanceState.isLoading)
+            const SizedBox(
+              height: 42,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (balanceState.error != null)
+            const Text(
+              'Error loading balance',
+              style: TextStyle(color: Colors.redAccent, fontSize: 16),
+            )
+          else
+            Text(
+              '${balanceState.balance.toStringAsFixed(2)} SUI',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 42,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -1,
+              ),
             ),
-          ),
           const SizedBox(height: 4),
-          const Text(
-            '1,250.00 USDC',
-            style: TextStyle(color: Colors.white54, fontSize: 14),
+          Text(
+            balanceState.isLoading ? 'Loading...' : '~ \$${(balanceState.balance * 1.05).toStringAsFixed(2)} USD', // Mock SUI conversion
+            style: const TextStyle(color: Colors.white54, fontSize: 14),
           ),
           const SizedBox(height: 32),
           Row(
