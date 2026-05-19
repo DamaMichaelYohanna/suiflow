@@ -122,7 +122,7 @@ class DashboardScreen extends ConsumerWidget {
                           child: Text('No vaults yet. Create one to start saving!', style: TextStyle(color: Colors.white54)),
                         ))
                       : SizedBox(
-                          height: 140,
+                          height: 160,
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: vaults.length,

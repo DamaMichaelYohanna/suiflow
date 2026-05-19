@@ -48,7 +48,7 @@ def run_migrations(engine):
                 conn.commit()
                 print(f"[MIGRATION] Added column users.{col_name}")
             except Exception:
-                pass
+                conn.rollback()
 
         # Columns to ensure in 'transaction_history' table
         tx_columns = [
@@ -65,5 +65,5 @@ def run_migrations(engine):
                 conn.commit()
                 print(f"[MIGRATION] Added column transaction_history.{col_name}")
             except Exception:
-                pass
+                conn.rollback()
 
