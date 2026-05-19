@@ -36,13 +36,20 @@ class VaultNotifier extends StateNotifier<AsyncValue<List<Vault>>> {
 
   Future<void> fetchVaults() async {
     final auth = ref.read(authProvider);
-    if (auth.phoneNumber == null) return;
+    final token = auth.token;
+    if (token == null) {
+      state = const AsyncValue.error('User is not authenticated', StackTrace.empty);
+      return;
+    }
 
     state = const AsyncValue.loading();
     try {
-      final response = await _dio.get('/vaults/', queryParameters: {
-        'owner_phone': auth.phoneNumber,
-      });
+      final response = await _dio.get(
+        '/vaults/',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+        ),
+      );
       final List<dynamic> data = response.data;
       final vaults = data.map((e) => Vault.fromJson(e)).toList();
       state = AsyncValue.data(vaults);
@@ -53,17 +60,20 @@ class VaultNotifier extends StateNotifier<AsyncValue<List<Vault>>> {
 
   Future<void> createVault(String name) async {
     final auth = ref.read(authProvider);
-    if (auth.phoneNumber == null) return;
+    final token = auth.token;
+    if (token == null) return;
 
     try {
-      await _dio.post('/vaults/', 
+      await _dio.post(
+        '/vaults/', 
         data: {'name': name},
-        queryParameters: {'owner_phone': auth.phoneNumber},
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+        ),
       );
       // Refresh the list after creation
       await fetchVaults();
     } catch (e) {
-      // In a real app, handle error
       print('Error creating vault: $e');
     }
   }

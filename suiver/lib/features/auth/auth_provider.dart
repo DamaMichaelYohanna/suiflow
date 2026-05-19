@@ -104,11 +104,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> login(String phoneNumber, String password) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final response = await _dio.post('/login',
-          data: FormData.fromMap({
-            'username': phoneNumber, // Standard OAuth2 field
-            'password': password,
-          }));
+      final response = await _dio.post(
+        '/login',
+        data: {
+          'username': phoneNumber, // Standard OAuth2 field
+          'password': password,
+        },
+        options: Options(
+          contentType: Headers.formUrlEncodedContentType,
+        ),
+      );
 
       state = state.copyWith(
         phoneNumber: response.data['user']['phone_number'],

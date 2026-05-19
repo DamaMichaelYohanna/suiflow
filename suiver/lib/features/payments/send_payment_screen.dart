@@ -279,8 +279,8 @@ class _SendPaymentScreenState extends ConsumerState<SendPaymentScreen>
                           onChanged: (val) {
                             if (val.length >= 10) _lookupUser(val);
                           },
-                          style: const TextStyle(
-                              fontSize: 18, color: Colors.white),
+                          style: TextStyle(
+                              fontSize: 18, color: Theme.of(context).colorScheme.onSurface),
                           decoration: InputDecoration(
                             hintText: 'Phone or Username',
                             prefixIcon:
@@ -305,8 +305,8 @@ class _SendPaymentScreenState extends ConsumerState<SendPaymentScreen>
                         TextField(
                           controller: _nameController,
                           readOnly: true, // Only show name from lookup
-                          style: const TextStyle(
-                              fontSize: 18, color: Colors.white70),
+                          style: TextStyle(
+                              fontSize: 18, color: Theme.of(context).colorScheme.onSurface),
                           decoration: InputDecoration(
                             hintText: 'Recipient Name (Auto-lookup)',
                             prefixIcon:
@@ -325,10 +325,10 @@ class _SendPaymentScreenState extends ConsumerState<SendPaymentScreen>
                           controller: _amountController,
                           keyboardType: const TextInputType.numberWithOptions(
                               decimal: true),
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 32,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white),
+                              color: Theme.of(context).colorScheme.onSurface),
                           decoration: InputDecoration(
                             hintText: '0.00',
                             prefixIcon: const Padding(
