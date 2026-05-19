@@ -58,10 +58,10 @@ class VaultNotifier extends StateNotifier<AsyncValue<List<Vault>>> {
     }
   }
 
-  Future<void> createVault(String name) async {
+  Future<String?> createVault(String name) async {
     final auth = ref.read(authProvider);
     final token = auth.token;
-    if (token == null) return;
+    if (token == null) return 'User is not authenticated';
 
     try {
       await _dio.post(
@@ -73,8 +73,17 @@ class VaultNotifier extends StateNotifier<AsyncValue<List<Vault>>> {
       );
       // Refresh the list after creation
       await fetchVaults();
+      return null;
     } catch (e) {
       print('Error creating vault: $e');
+      if (e is DioException) {
+        final data = e.response?.data;
+        if (data is Map && data.containsKey('detail')) {
+          return data['detail'].toString();
+        }
+        return e.message;
+      }
+      return e.toString();
     }
   }
 }
