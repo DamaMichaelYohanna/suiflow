@@ -5,6 +5,8 @@ import '../payments/send_payment_screen.dart';
 import 'vault_provider.dart';
 import 'transaction_provider.dart';
 import 'balance_provider.dart';
+import '../auth/auth_screen.dart';
+import '../auth/auth_provider.dart';
 import '../../core/network/api_client.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -46,8 +48,15 @@ class DashboardScreen extends ConsumerWidget {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {},
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Logout',
+            onPressed: () {
+              ref.read(authProvider.notifier).logout();
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const AuthScreen()),
+              );
+            },
           ),
           const SizedBox(width: 8),
         ],
@@ -87,12 +96,22 @@ class DashboardScreen extends ConsumerWidget {
           ),
           
           SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+            child: RefreshIndicator(
+              backgroundColor: const Color(0xFF1E1E1E),
+              color: Theme.of(context).colorScheme.primary,
+              onRefresh: () async {
+                await Future.wait([
+                  ref.read(balanceProvider.notifier).fetchBalance(),
+                  ref.read(vaultProvider.notifier).fetchVaults(),
+                  ref.read(transactionProvider.notifier).fetchHistory(),
+                ]);
+              },
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                   // Premium Balance Card
                   _buildBalanceCard(context, ref, balanceState),
                   const SizedBox(height: 32),
@@ -251,8 +270,9 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
+    ),
     );
   }
 
