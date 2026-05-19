@@ -47,7 +47,7 @@ class _SendPaymentScreenState extends ConsumerState<SendPaymentScreen>
 
   void _lookupUser(String query) async {
     if (query.isEmpty) return;
-    
+
     setState(() {
       _isVerifying = true;
       _lookupError = null;
@@ -61,20 +61,24 @@ class _SendPaymentScreenState extends ConsumerState<SendPaymentScreen>
           return handler.next(options);
         },
         onResponse: (response, handler) {
-          print('[LOOKUP Response] ${response.statusCode} from ${response.requestOptions.uri}');
+          print(
+              '[LOOKUP Response] ${response.statusCode} from ${response.requestOptions.uri}');
           return handler.next(response);
         },
         onError: (DioException e, handler) {
-          print('[LOOKUP Error] ${e.response?.statusCode} from ${e.requestOptions.uri}: ${e.message}');
+          print(
+              '[LOOKUP Error] ${e.response?.statusCode} from ${e.requestOptions.uri}: ${e.message}');
           return handler.next(e);
         },
       ));
-      
-      final response = await dio.get('/lookup', queryParameters: {'query': query});
-      
+
+      final response =
+          await dio.get('/lookup', queryParameters: {'query': query});
+
       if (mounted) {
         setState(() {
-          _nameController.text = response.data['full_name'] ?? response.data['username'];
+          _nameController.text =
+              response.data['full_name'] ?? response.data['username'];
           _isVerifying = false;
         });
       }
@@ -88,50 +92,98 @@ class _SendPaymentScreenState extends ConsumerState<SendPaymentScreen>
     }
   }
 
-  void _showSuccessDialog(String title, String description) {
+  void _showResultDialog({
+    required bool isSuccess,
+    required String title,
+    required String description,
+    String? digest,
+  }) {
     showDialog(
       context: context,
-      builder: (context) => Center(
-        child: ScaleTransition(
-          scale: _scaleAnimation,
-          child: GlassContainer(
-            padding: const EdgeInsets.all(32),
-            borderRadius: 32,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withOpacity(0.2),
-                    shape: BoxShape.circle,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        backgroundColor: const Color(0xFF16161E),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icon badge
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isSuccess
+                      ? const Color(0xFF00E676).withOpacity(0.15)
+                      : const Color(0xFF00B0FF).withOpacity(0.15),
+                  border: Border.all(
+                    color: isSuccess
+                        ? const Color(0xFF00E676)
+                        : const Color(0xFF00B0FF),
+                    width: 2,
                   ),
-                  child: Icon(Icons.check_rounded,
-                      size: 48, color: Theme.of(context).colorScheme.primary),
                 ),
-                const SizedBox(height: 24),
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white)),
-                const SizedBox(height: 8),
-                Text(description,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white60)),
-                const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context); // Close dialog
-                    Navigator.pop(context); // Go back to dashboard
-                  },
-                  child: const Text('Back to Home'),
+                child: Icon(
+                  isSuccess ? Icons.check_rounded : Icons.schedule_rounded,
+                  size: 40,
+                  color: isSuccess
+                      ? const Color(0xFF00E676)
+                      : const Color(0xFF00B0FF),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Title
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Description
+              Text(
+                description,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.white60,
+                  height: 1.5,
+                ),
+              ),
+              // Digest chip (optional)
+              if (digest != null) ...[
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Text(
+                    'Digest: ${digest.substring(0, 16)}…',
+                    style: const TextStyle(color: Colors.white38, fontSize: 11, fontFamily: 'monospace'),
+                  ),
                 ),
               ],
-            ),
+              const SizedBox(height: 28),
+              // Action button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);  // close dialog
+                    Navigator.pop(context); // back to dashboard
+                  },
+                  child: const Text('Back to Dashboard'),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -140,18 +192,33 @@ class _SendPaymentScreenState extends ConsumerState<SendPaymentScreen>
 
   void _sendPayment() async {
     final auth = ref.read(authProvider);
-    
+
+    // Basic validation
+    if (_phoneController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter a recipient phone or username')));
+      return;
+    }
+    if (_amountController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter an amount')));
+      return;
+    }
     if (auth.phoneNumber == _phoneController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You cannot send money to yourself'))
-      );
+          const SnackBar(content: Text('You cannot send money to yourself')));
       return;
     }
 
     final amount = double.tryParse(_amountController.text) ?? 0.0;
-    final split = _savingsPercentage > 0
-        ? {'savings': _savingsPercentage.toInt()}
-        : null;
+    if (amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Amount must be greater than zero')));
+      return;
+    }
+
+    final split =
+        _savingsPercentage > 0 ? {'savings': _savingsPercentage.toInt()} : null;
 
     final payload = {
       'receiver_phone': _phoneController.text,
@@ -161,23 +228,22 @@ class _SendPaymentScreenState extends ConsumerState<SendPaymentScreen>
       'timestamp': DateTime.now().toIso8601String(),
     };
 
-    setState(() {
-      _isVerifying = true;
-    });
+    setState(() => _isVerifying = true);
 
     try {
-      // Attempt live transaction broadcast
       final dio = Dio(BaseOptions(
         baseUrl: AppConfig.baseUrl,
-        headers: auth.token != null ? {'Authorization': 'Bearer ${auth.token}'} : {},
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 15),
+        headers: auth.token != null
+            ? {'Authorization': 'Bearer ${auth.token}'}
+            : {},
       ));
-      
+
       dio.interceptors.add(InterceptorsWrapper(
         onRequest: (options, handler) {
           print('[SEND PAYMENT Request] ${options.method} ${options.uri}');
-          if (options.data != null) {
-            print('[SEND PAYMENT Request Body] ${options.data}');
-          }
+          if (options.data != null) print('[SEND PAYMENT Body] ${options.data}');
           return handler.next(options);
         },
         onResponse: (response, handler) {
@@ -185,35 +251,63 @@ class _SendPaymentScreenState extends ConsumerState<SendPaymentScreen>
           return handler.next(response);
         },
         onError: (DioException e, handler) {
-          print('[SEND PAYMENT Error] ${e.response?.statusCode} from ${e.requestOptions.uri}: ${e.message}');
-          if (e.response?.data != null) {
-            print('[SEND PAYMENT Error Body] ${e.response?.data}');
-          }
+          print('[SEND PAYMENT Error] ${e.response?.statusCode}: ${e.message}');
+          if (e.response?.data != null) print('[SEND PAYMENT Error Body] ${e.response?.data}');
           return handler.next(e);
         },
       ));
-      
-      await dio.post('/payments/send', data: {
+
+      final response = await dio.post('/payments/send', data: {
         'receiver_phone': _phoneController.text,
         'amount': amount,
         'programmable_split': split,
       });
 
       if (mounted) {
-        setState(() {
-          _isVerifying = false;
-        });
-        _showSuccessDialog('Payment Completed', 'Your payment was broadcast to the Sui network successfully.');
+        setState(() => _isVerifying = false);
+        final digest = response.data['sui_digest'] as String?;
+        _showResultDialog(
+          isSuccess: true,
+          title: 'Payment Sent!',
+          description:
+              'Your payment of \$$amount USDC to ${_nameController.text.isNotEmpty ? _nameController.text : _phoneController.text} has been submitted to the Sui network.',
+          digest: digest,
+        );
       }
-    } catch (e) {
-      print('[SEND PAYMENT Exception] Failed live payment broadcast, falling back to offline queue: $e');
-      // Offline fallback: Save transaction to local Hive queue
-      await OfflineQueue.addTransaction(payload);
-      if (mounted) {
-        setState(() {
-          _isVerifying = false;
-        });
-        _showSuccessDialog('Payment Queued', 'You are offline or the server is unreachable. Transaction has been queued to sync automatically.');
+    } on DioException catch (e) {
+      if (mounted) setState(() => _isVerifying = false);
+
+      // Connectivity error → queue offline
+      final isConnectivityError = e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError;
+
+      if (isConnectivityError) {
+        print('[SEND PAYMENT] Connectivity error, queuing offline: $e');
+        await OfflineQueue.addTransaction(payload);
+        if (mounted) {
+          _showResultDialog(
+            isSuccess: false,
+            title: 'Payment Queued',
+            description:
+                'No internet connection detected. Your payment has been saved and will sync automatically when you\'re back online.',
+          );
+        }
+      } else {
+        // Server returned an error (4xx / 5xx) — show the message, don\'t queue
+        print('[SEND PAYMENT] Server error (${e.response?.statusCode}): ${e.response?.data}');
+        final detail = e.response?.data is Map
+            ? (e.response?.data['detail'] ?? 'Payment failed')
+            : 'Payment failed (${e.response?.statusCode})';
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(detail.toString()),
+              backgroundColor: const Color(0xFFFF3D00),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
       }
     }
   }
@@ -280,37 +374,45 @@ class _SendPaymentScreenState extends ConsumerState<SendPaymentScreen>
                             if (val.length >= 10) _lookupUser(val);
                           },
                           style: TextStyle(
-                              fontSize: 18, color: Theme.of(context).colorScheme.onSurface),
+                              fontSize: 18,
+                              color: Theme.of(context).colorScheme.onSurface),
                           decoration: InputDecoration(
                             hintText: 'Phone or Username',
-                            prefixIcon:
-                                const Icon(Icons.person_search_rounded),
+                            prefixIcon: const Icon(Icons.person_search_rounded),
                             hintStyle:
                                 TextStyle(color: Colors.white.withOpacity(0.3)),
-                            suffixIcon: _isVerifying 
-                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                                : _lookupError != null 
-                                  ? const Icon(Icons.error_outline, color: Colors.redAccent)
-                                  : _nameController.text.isNotEmpty 
-                                    ? const Icon(Icons.check_circle_outline, color: Colors.greenAccent)
-                                    : null,
+                            suffixIcon: _isVerifying
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2))
+                                : _lookupError != null
+                                    ? const Icon(Icons.error_outline,
+                                        color: Colors.redAccent)
+                                    : _nameController.text.isNotEmpty
+                                        ? const Icon(Icons.check_circle_outline,
+                                            color: Colors.greenAccent)
+                                        : null,
                           ),
                         ),
                         if (_lookupError != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 8, left: 12),
-                            child: Text(_lookupError!, style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
+                            child: Text(_lookupError!,
+                                style: const TextStyle(
+                                    color: Colors.redAccent, fontSize: 12)),
                           ),
                         const SizedBox(height: 20),
                         TextField(
                           controller: _nameController,
                           readOnly: true, // Only show name from lookup
                           style: TextStyle(
-                              fontSize: 18, color: Theme.of(context).colorScheme.onSurface),
+                              fontSize: 18,
+                              color: Theme.of(context).colorScheme.onSurface),
                           decoration: InputDecoration(
                             hintText: 'Recipient Name (Auto-lookup)',
-                            prefixIcon:
-                                const Icon(Icons.badge_outlined),
+                            prefixIcon: const Icon(Icons.badge_outlined),
                             hintStyle:
                                 TextStyle(color: Colors.white.withOpacity(0.3)),
                           ),
@@ -389,20 +491,22 @@ class _SendPaymentScreenState extends ConsumerState<SendPaymentScreen>
                                 style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
-                                    color: Colors.white)),
+                                    color: Colors.black)),
                           ],
                         ),
                         const SizedBox(height: 16),
                         const Text(
                           'Enable auto-savings for the recipient. A portion of this payment will be automatically diverted to their locked Savings Vault.',
-                          style: TextStyle(color: Colors.white54, height: 1.5),
+                          style: TextStyle(
+                              color: Color.fromARGB(137, 0, 0, 0), height: 1.5),
                         ),
                         const SizedBox(height: 24),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Text('Savings Contribution',
-                                style: TextStyle(color: Colors.white70)),
+                                style: TextStyle(
+                                    color: Color.fromARGB(179, 0, 0, 0))),
                             Text('${_savingsPercentage.toInt()}%',
                                 style: TextStyle(
                                     color:
