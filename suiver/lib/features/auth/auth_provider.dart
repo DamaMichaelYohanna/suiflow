@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
+import '../../core/network/config.dart';
 
 class AuthState {
   final String? phoneNumber;
@@ -10,10 +11,10 @@ class AuthState {
   final String? error;
 
   AuthState({
-    this.phoneNumber, 
+    this.phoneNumber,
     this.socialId,
     this.token,
-    this.isAuthenticated = false, 
+    this.isAuthenticated = false,
     this.isLoading = false,
     this.error,
   });
@@ -38,9 +39,34 @@ class AuthState {
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  final _dio = Dio(BaseOptions(baseUrl: 'http://localhost:8000/api/auth'));
+  final Dio _dio;
 
-  AuthNotifier() : super(AuthState());
+  AuthNotifier()
+      : _dio = Dio(BaseOptions(baseUrl: '${AppConfig.baseUrl}/auth')),
+        super(AuthState()) {
+    _dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) {
+        print('[AUTH PROVIDER Request] ${options.method} ${options.uri}');
+        if (options.data != null) {
+          print('[AUTH PROVIDER Request Body] ${options.data}');
+        }
+        return handler.next(options);
+      },
+      onResponse: (response, handler) {
+        print(
+            '[AUTH PROVIDER Response] ${response.statusCode} from ${response.requestOptions.uri}');
+        return handler.next(response);
+      },
+      onError: (DioException e, handler) {
+        print(
+            '[AUTH PROVIDER Error] ${e.response?.statusCode} from ${e.requestOptions.uri}: ${e.message}');
+        if (e.response?.data != null) {
+          print('[AUTH PROVIDER Error Body] ${e.response?.data}');
+        }
+        return handler.next(e);
+      },
+    ));
+  }
 
   Future<void> register({
     String? phoneNumber,
@@ -60,7 +86,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         'social_id': socialId,
         'auth_method': authMethod,
       });
-      
+
       state = state.copyWith(
         phoneNumber: response.data['user']['phone_number'],
         socialId: response.data['user']['social_id'],
@@ -70,20 +96,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
     } on DioException catch (e) {
       state = state.copyWith(
-        isLoading: false, 
-        error: e.response?.data['detail'] ?? 'Registration failed'
-      );
+          isLoading: false,
+          error: e.response?.data['detail'] ?? 'Registration failed');
     }
   }
 
   Future<void> login(String phoneNumber, String password) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final response = await _dio.post('/login', data: FormData.fromMap({
-        'username': phoneNumber, // Standard OAuth2 field
-        'password': password,
-      }));
-      
+      final response = await _dio.post('/login',
+          data: FormData.fromMap({
+            'username': phoneNumber, // Standard OAuth2 field
+            'password': password,
+          }));
+
       state = state.copyWith(
         phoneNumber: response.data['user']['phone_number'],
         token: response.data['token']['access_token'],
@@ -92,9 +118,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
     } on DioException catch (e) {
       state = state.copyWith(
-        isLoading: false, 
-        error: e.response?.data['detail'] ?? 'Login failed'
-      );
+          isLoading: false,
+          error: e.response?.data['detail'] ?? 'Login failed');
     }
   }
 
@@ -104,7 +129,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final response = await _dio.post('/zklogin', data: {
         'jwt': jwt,
       });
-      
+
       state = state.copyWith(
         socialId: response.data['user']['social_id'],
         token: response.data['token']['access_token'],
@@ -121,9 +146,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
       } else {
         state = state.copyWith(
-          isLoading: false, 
-          error: e.response?.data['detail'] ?? 'Social login failed'
-        );
+            isLoading: false,
+            error: e.response?.data['detail'] ?? 'Social login failed');
       }
     }
   }
@@ -131,7 +155,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   void logout() {
     state = AuthState();
   }
-  
+
   void clearError() {
     state = state.copyWith(error: null);
   }

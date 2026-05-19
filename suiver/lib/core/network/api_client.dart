@@ -1,15 +1,38 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'offline_queue.dart';
+import 'config.dart';
 import '../../features/auth/auth_provider.dart';
 
 class ApiClient {
   final Dio _dio;
 
   ApiClient(String? token) : _dio = Dio(BaseOptions(
-    baseUrl: 'http://localhost:8000/api',
+    baseUrl: AppConfig.baseUrl,
     headers: token != null ? {'Authorization': 'Bearer $token'} : {},
-  ));
+  )) {
+    _dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) {
+        print('[API CLIENT Request] ${options.method} ${options.uri}');
+        if (options.data != null) {
+          print('[API CLIENT Request Body] ${options.data}');
+        }
+        return handler.next(options);
+      },
+      onResponse: (response, handler) {
+        print('[API CLIENT Response] ${response.statusCode} from ${response.requestOptions.uri}');
+        return handler.next(response);
+      },
+      onError: (DioException e, handler) {
+        print('[API CLIENT Error] ${e.response?.statusCode} from ${e.requestOptions.uri}: ${e.message}');
+        if (e.response?.data != null) {
+          print('[API CLIENT Error Body] ${e.response?.data}');
+        }
+        return handler.next(e);
+      },
+    ));
+  }
+
 
   /// Simulates syncing offline transactions with the backend
   Future<void> syncOfflineQueue() async {

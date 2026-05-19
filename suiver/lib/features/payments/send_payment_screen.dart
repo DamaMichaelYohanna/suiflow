@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../../core/network/offline_queue.dart';
+import '../../core/network/config.dart';
 import '../auth/auth_provider.dart';
 import '../../core/ui/glass_container.dart';
 
@@ -53,7 +54,22 @@ class _SendPaymentScreenState extends ConsumerState<SendPaymentScreen>
     });
 
     try {
-      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:8000/api/auth'));
+      final dio = Dio(BaseOptions(baseUrl: '${AppConfig.baseUrl}/auth'));
+      dio.interceptors.add(InterceptorsWrapper(
+        onRequest: (options, handler) {
+          print('[LOOKUP Request] ${options.method} ${options.uri}');
+          return handler.next(options);
+        },
+        onResponse: (response, handler) {
+          print('[LOOKUP Response] ${response.statusCode} from ${response.requestOptions.uri}');
+          return handler.next(response);
+        },
+        onError: (DioException e, handler) {
+          print('[LOOKUP Error] ${e.response?.statusCode} from ${e.requestOptions.uri}: ${e.message}');
+          return handler.next(e);
+        },
+      ));
+      
       final response = await dio.get('/lookup', queryParameters: {'query': query});
       
       if (mounted) {
@@ -152,8 +168,29 @@ class _SendPaymentScreenState extends ConsumerState<SendPaymentScreen>
     try {
       // Attempt live transaction broadcast
       final dio = Dio(BaseOptions(
-        baseUrl: 'http://localhost:8000/api',
+        baseUrl: AppConfig.baseUrl,
         headers: auth.token != null ? {'Authorization': 'Bearer ${auth.token}'} : {},
+      ));
+      
+      dio.interceptors.add(InterceptorsWrapper(
+        onRequest: (options, handler) {
+          print('[SEND PAYMENT Request] ${options.method} ${options.uri}');
+          if (options.data != null) {
+            print('[SEND PAYMENT Request Body] ${options.data}');
+          }
+          return handler.next(options);
+        },
+        onResponse: (response, handler) {
+          print('[SEND PAYMENT Response] ${response.statusCode} from ${response.requestOptions.uri}');
+          return handler.next(response);
+        },
+        onError: (DioException e, handler) {
+          print('[SEND PAYMENT Error] ${e.response?.statusCode} from ${e.requestOptions.uri}: ${e.message}');
+          if (e.response?.data != null) {
+            print('[SEND PAYMENT Error Body] ${e.response?.data}');
+          }
+          return handler.next(e);
+        },
       ));
       
       await dio.post('/payments/send', data: {
@@ -169,6 +206,7 @@ class _SendPaymentScreenState extends ConsumerState<SendPaymentScreen>
         _showSuccessDialog('Payment Completed', 'Your payment was broadcast to the Sui network successfully.');
       }
     } catch (e) {
+      print('[SEND PAYMENT Exception] Failed live payment broadcast, falling back to offline queue: $e');
       // Offline fallback: Save transaction to local Hive queue
       await OfflineQueue.addTransaction(payload);
       if (mounted) {

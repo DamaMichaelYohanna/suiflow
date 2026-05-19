@@ -2,12 +2,35 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'vault_model.dart';
 import '../auth/auth_provider.dart';
+import '../../core/network/config.dart';
 
 class VaultNotifier extends StateNotifier<AsyncValue<List<Vault>>> {
   final Ref ref;
-  final _dio = Dio(BaseOptions(baseUrl: 'http://localhost:8000/api'));
+  final Dio _dio;
 
-  VaultNotifier(this.ref) : super(const AsyncValue.loading()) {
+  VaultNotifier(this.ref)
+      : _dio = Dio(BaseOptions(baseUrl: AppConfig.baseUrl)),
+        super(const AsyncValue.loading()) {
+    _dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) {
+        print('[VAULT PROVIDER Request] ${options.method} ${options.uri}');
+        if (options.data != null) {
+          print('[VAULT PROVIDER Request Body] ${options.data}');
+        }
+        return handler.next(options);
+      },
+      onResponse: (response, handler) {
+        print('[VAULT PROVIDER Response] ${response.statusCode} from ${response.requestOptions.uri}');
+        return handler.next(response);
+      },
+      onError: (DioException e, handler) {
+        print('[VAULT PROVIDER Error] ${e.response?.statusCode} from ${e.requestOptions.uri}: ${e.message}');
+        if (e.response?.data != null) {
+          print('[VAULT PROVIDER Error Body] ${e.response?.data}');
+        }
+        return handler.next(e);
+      },
+    ));
     fetchVaults();
   }
 
