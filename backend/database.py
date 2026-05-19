@@ -6,8 +6,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# The user will provide this in their environment
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost/suiflow")
+# The user will provide this in their environment; fallback to SQLite safely on Vercel or local
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+if not SQLALCHEMY_DATABASE_URL:
+    if os.environ.get("VERCEL") == "1":
+        SQLALCHEMY_DATABASE_URL = "sqlite:////tmp/sql_app.db"
+    else:
+        SQLALCHEMY_DATABASE_URL = "sqlite:///./sql_app.db"
+elif SQLALCHEMY_DATABASE_URL.startswith("sqlite:///./") and os.environ.get("VERCEL") == "1":
+    SQLALCHEMY_DATABASE_URL = "sqlite:////tmp/" + SQLALCHEMY_DATABASE_URL.split("sqlite:///./")[-1]
 
 # For SQLite, we need connect_args={"check_same_thread": False}
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):

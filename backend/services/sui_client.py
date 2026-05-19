@@ -11,17 +11,34 @@ from pysui.sui.sui_types import bcs
 if not hasattr(bcs, "TYPETAG_VECTOR_DEPTH_MAX"):
     bcs.TYPETAG_VECTOR_DEPTH_MAX = 8
 
-# Initialize actual Sui client. Must load valid configuration.
-try:
-    config = SuiConfig.default_config()
-    client = SyncClient(config)
-    print(f"[SUI SDK CLIENT] Active address: {config.active_address}")
-except Exception as e:
-    raise RuntimeError(f"[SUI SDK CLIENT] Failed to load local Sui configuration: {e}")
+# Initialize actual Sui client. Supporting both environment variables (Vercel) and local configs.
+client = None
+config = None
+
+sui_sponsor_key = os.environ.get("SUI_SPONSOR_KEY")
+sui_rpc_url = os.environ.get("SUI_RPC_URL", "https://fullnode.testnet.sui.io:443")
+
+if sui_sponsor_key:
+    try:
+        config = SuiConfig.user_config(rpc_url=sui_rpc_url)
+        config.add_keypair_from_keystring(keystring=sui_sponsor_key, install=False, make_active=True)
+        client = SyncClient(config)
+        print(f"[SUI SDK CLIENT] Serverless Active address: {config.active_address}")
+    except Exception as e:
+        print(f"[SUI SDK CLIENT] Failed to initialize from SUI_SPONSOR_KEY env var: {e}")
+
+if not client:
+    try:
+        config = SuiConfig.default_config()
+        client = SyncClient(config)
+        print(f"[SUI SDK CLIENT] Local Active address: {config.active_address}")
+    except Exception as e:
+        print(f"[SUI SDK CLIENT] Failed to load local Sui configuration (can be ignored on Vercel if SUI_SPONSOR_KEY is set): {e}")
 
 class SuiClientService:
     def __init__(self):
-        self.network = "local" if "127.0.0.1" in config.rpc_url else "testnet"
+        self.network = "local" if (config and config.rpc_url and "127.0.0.1" in config.rpc_url) else "testnet"
+
 
     def generate_wallet(self) -> dict:
         """
@@ -39,6 +56,8 @@ class SuiClientService:
         """
         Registers the user's phone-to-wallet mapping on-chain using the AdminCap.
         """
+        if not client or not config:
+            raise RuntimeError("Sui SDK Client is not initialized. Please configure SUI_SPONSOR_KEY in Vercel environment variables or ensure local client.yaml is present.")
         from pysui.sui.sui_txn import SyncTransaction
 
         from pysui import ObjectID
@@ -82,6 +101,8 @@ class SuiClientService:
         Pushes gas fees to the sponsor's wallet while keeping the sender as the user.
         Strictly requires the sender to have a valid SUI coin.
         """
+        if not client or not config:
+            raise RuntimeError("Sui SDK Client is not initialized. Please configure SUI_SPONSOR_KEY in Vercel environment variables or ensure local client.yaml is present.")
         from pysui.sui.sui_txn import SyncTransaction
 
         txn = SyncTransaction(client=client)
@@ -157,6 +178,8 @@ class SuiClientService:
         """
         Signs transaction bytes as the Gas Sponsor using the backend relayer's keys.
         """
+        if not client or not config:
+            raise RuntimeError("Sui SDK Client is not initialized. Please configure SUI_SPONSOR_KEY in Vercel environment variables or ensure local client.yaml is present.")
         # Get sponsor keypair
         sponsor_address = client.config.active_address
         sponsor_keypair = client.config.keypair_for_address(sponsor_address)
@@ -169,6 +192,8 @@ class SuiClientService:
         """
         Submits pre-signed transaction bytes with both User and Sponsor signatures to the Sui RPC.
         """
+        if not client or not config:
+            raise RuntimeError("Sui SDK Client is not initialized. Please configure SUI_SPONSOR_KEY in Vercel environment variables or ensure local client.yaml is present.")
         from pysui.sui.sui_builders.exec_builders import ExecuteTransaction
         from pysui.sui.sui_builders.base_builder import SuiRequestType
         from pysui.sui.sui_types.scalars import SuiSignature

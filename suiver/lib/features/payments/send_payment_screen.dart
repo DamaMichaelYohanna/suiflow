@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../../core/network/offline_queue.dart';
@@ -118,9 +119,8 @@ class _SendPaymentScreenState extends ConsumerState<SendPaymentScreen>
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   void _sendPayment() async {
     final auth = ref.read(authProvider);
