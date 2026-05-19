@@ -125,7 +125,7 @@ class DashboardScreen extends ConsumerWidget {
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       TextButton(
-                        onPressed: () {},
+                        onPressed: () => _showCreateVaultDialog(context, ref),
                         child: Row(
                           children: [
                             const Icon(Icons.add, size: 18),

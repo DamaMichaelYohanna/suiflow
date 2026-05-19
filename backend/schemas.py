@@ -40,6 +40,7 @@ class VaultSchema(BaseModel):
     id: int
     name: str
     object_id: str
+    balance: float = 0.0
 
     class Config:
         from_attributes = True

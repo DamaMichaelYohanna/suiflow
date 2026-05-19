@@ -23,15 +23,35 @@ class WalletService:
         )
         db.add(wallet)
         
-        # Initialize default Vaults
+        # Initialize default Vaults on-chain
+        try:
+            print(f"[WALLET SERVICE] Creating on-chain Savings vault for user {wallet_data['address']}...")
+            savings_object_id = sui_client.create_vault_on_chain(
+                user_address=wallet_data["address"],
+                user_private_key=wallet_data["private_key"]
+            )
+        except Exception as e:
+            print(f"[WALLET SERVICE] Warning: On-chain Savings vault creation failed: {e}")
+            savings_object_id = f"vault_{user_id}_savings"
+
+        try:
+            print(f"[WALLET SERVICE] Creating on-chain Investment vault for user {wallet_data['address']}...")
+            investment_object_id = sui_client.create_vault_on_chain(
+                user_address=wallet_data["address"],
+                user_private_key=wallet_data["private_key"]
+            )
+        except Exception as e:
+            print(f"[WALLET SERVICE] Warning: On-chain Investment vault creation failed: {e}")
+            investment_object_id = f"vault_{user_id}_invest"
+
         savings_vault = models.Vault(
             name="Savings", 
-            object_id=f"vault_{user_id}_savings", 
+            object_id=savings_object_id, 
             owner_id=user_id
         )
         investment_vault = models.Vault(
             name="Investment", 
-            object_id=f"vault_{user_id}_invest", 
+            object_id=investment_object_id, 
             owner_id=user_id
         )
         db.add(savings_vault)

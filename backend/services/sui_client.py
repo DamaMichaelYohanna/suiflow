@@ -297,4 +297,123 @@ class SuiClientService:
             
         return res["digest"]
 
+    def create_vault_on_chain(self, user_address: str, user_private_key: str) -> str:
+        """
+        Creates a new Vault on-chain using a sponsored transaction.
+        Returns the created Vault's object ID.
+        """
+        if not client or not config:
+            raise RuntimeError("Sui SDK Client is not initialized. Please configure SUI_SPONSOR_KEY.")
+        from pysui.sui.sui_txn import SyncTransaction
+        from pysui import SuiAddress, ObjectID
+
+        # Build txn
+        txn = SyncTransaction(client=client)
+        txn.signer_block.sender = SuiAddress(user_address)
+        txn.signer_block.sponsor = client.config.active_address
+
+        package_id = os.environ["SUIFLOW_PACKAGE_ID"]
+        txn.move_call(
+            target=f"{package_id}::vaults::create_vault",
+            arguments=[],
+            type_arguments=["0x2::sui::SUI"]
+        )
+
+        tx_bytes = txn.tx_bytes
+        sponsor_sig = self.sign_as_sponsor(tx_bytes)
+
+        # Temporarily register user keypair in config if needed to sign
+        try:
+            client.config.add_keypair_from_keystring(keystring=user_private_key, install=False, make_active=False)
+        except ValueError:
+            pass
+
+        user_keypair = client.config.keypair_for_address(SuiAddress(user_address))
+        user_sig = user_keypair.new_sign_secure(tx_bytes).value
+
+        # Submit dual-signed txn
+        from pysui.sui.sui_builders.exec_builders import ExecuteTransaction
+        from pysui.sui.sui_builders.base_builder import SuiRequestType
+        from pysui.sui.sui_types.scalars import SuiSignature
+        from pysui.sui.sui_types.collections import SuiArray
+
+        signatures = SuiArray([SuiSignature(user_sig), SuiSignature(sponsor_sig)])
+        exec_tx = ExecuteTransaction(
+            tx_bytes=tx_bytes,
+            signatures=signatures,
+            request_type=SuiRequestType.WAITFORLOCALEXECUTION
+        )
+
+        result = client.execute(exec_tx)
+        if result.is_err():
+            raise Exception(f"Sui transaction submission failed: {result.result_string}")
+
+        data = result.result_data
+        effects = getattr(data, "effects", None)
+        if not effects or not hasattr(effects, "created"):
+            raise ValueError("No created objects in transaction effects.")
+
+        # Find the shared Vault object ID from effects
+        vault_id = None
+        for created in getattr(effects, "created", []):
+            owner = created.owner
+            if isinstance(owner, dict) and ("initial_shared_version" in owner or "Shared" in owner):
+                vault_id = created.reference.object_id
+                break
+
+        if not vault_id and getattr(effects, "created", []):
+            # Fallback to first created object
+            vault_id = effects.created[0].reference.object_id
+
+        if not vault_id:
+            raise ValueError("Failed to locate created shared Vault object ID.")
+
+        print(f"[SUI SDK CLIENT] Created on-chain vault {vault_id} for user {user_address}")
+        return vault_id
+
+    def get_vault_balance(self, object_id: str) -> float:
+        """
+        Queries the on-chain SUI balance inside a Vault object.
+        """
+        if not object_id or not object_id.startswith("0x"):
+            return 0.0
+            
+        import urllib.request
+        import json
+        
+        try:
+            url = os.environ.get("SUI_RPC_URL", "https://fullnode.testnet.sui.io:443")
+            payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "sui_getObject",
+                "params": [
+                    object_id,
+                    {"showContent": True}
+                ]
+            }
+            req = urllib.request.Request(
+                url, 
+                data=json.dumps(payload).encode(), 
+                headers={'Content-Type': 'application/json'}
+            )
+            with urllib.request.urlopen(req, timeout=5) as response:
+                res_data = json.loads(response.read().decode())
+                if "result" in res_data and "data" in res_data["result"]:
+                    obj_data = res_data["result"]["data"]
+                    if "content" in obj_data and "fields" in obj_data["content"]:
+                        fields = obj_data["content"]["fields"]
+                        if "balance" in fields:
+                            val = fields["balance"]
+                            if isinstance(val, dict) and "value" in val:
+                                return float(val["value"]) / 1_000_000_000.0
+                            elif isinstance(val, (int, float)):
+                                return float(val) / 1_000_000_000.0
+                            elif isinstance(val, str) and val.isdigit():
+                                return float(val) / 1_000_000_000.0
+            return 0.0
+        except Exception as e:
+            print(f"[SUI SDK CLIENT] Failed to fetch vault balance for {object_id}: {e}")
+            return 0.0
+
 sui_client = SuiClientService()

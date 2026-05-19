@@ -52,6 +52,32 @@ class PaymentOrchestratorService:
             if vault:
                 receiver_vault_id = vault.object_id
 
+        # If the resolved vault object ID is a mock string, dynamically create it on-chain now!
+        if receiver_vault_id and not receiver_vault_id.startswith("0x"):
+            try:
+                print(f"[ORCHESTRATOR] Vault {receiver_vault_id} is a mock. Creating on-chain vault for receiver...")
+                from services.kms_vault import decrypt_private_key
+                receiver_pk = decrypt_private_key(receiver.wallet.encrypted_keypair)
+                
+                # Create vault on-chain
+                real_vault_id = sui_client.create_vault_on_chain(
+                    user_address=receiver.wallet.address,
+                    user_private_key=receiver_pk
+                )
+                
+                # Update database
+                vault = db.query(models.Vault).filter(
+                    models.Vault.owner_id == receiver_id,
+                    models.Vault.object_id == receiver_vault_id
+                ).first()
+                if vault:
+                    vault.object_id = real_vault_id
+                    db.commit()
+                    receiver_vault_id = real_vault_id
+                    print(f"[ORCHESTRATOR] Successfully migrated mock vault to on-chain object {real_vault_id}")
+            except Exception as e:
+                print(f"[ORCHESTRATOR] Warning: Failed to lazily migrate mock vault: {e}")
+
         sender_wallet = sender.wallet.address
         receiver_wallet = receiver.wallet.address
         receiver_identifier = receiver.phone_number if receiver.phone_number else receiver.username
