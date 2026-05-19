@@ -51,6 +51,8 @@ def register_user(user: schemas.UserCreate, db: Session = Depends(database.get_d
             display_name=new_user.full_name or new_user.username,
             wallet_address=wallet.address
         )
+        new_user.is_registered_on_chain = True
+        db.commit()
     except Exception as e:
         print(f"[AUTH ROUTER] Warning: On-chain registration failed: {e}")
 

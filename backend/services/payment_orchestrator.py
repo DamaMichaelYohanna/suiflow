@@ -56,6 +56,27 @@ class PaymentOrchestratorService:
         receiver_wallet = receiver.wallet.address
         receiver_identifier = receiver.phone_number if receiver.phone_number else receiver.username
 
+        # Check if receiver is registered on-chain. If not, lazily register them now using the sponsor's admin cap.
+        if not getattr(receiver, "is_registered_on_chain", False):
+            try:
+                print(f"[ORCHESTRATOR] Lazy-registering recipient {receiver_identifier} on-chain...")
+                sui_client.register_user_on_chain(
+                    phone_number=receiver_identifier,
+                    display_name=receiver.full_name or receiver.username,
+                    wallet_address=receiver_wallet
+                )
+                receiver.is_registered_on_chain = True
+                db.commit()
+            except Exception as e:
+                # If already registered on-chain but DB didn't reflect it, mark as True.
+                # EPhoneAlreadyRegistered maps to code 600 or the error string.
+                if "EPhoneAlreadyRegistered" in str(e) or "600" in str(e):
+                    print(f"[ORCHESTRATOR] Recipient {receiver_identifier} was already registered on-chain.")
+                    receiver.is_registered_on_chain = True
+                    db.commit()
+                else:
+                    print(f"[ORCHESTRATOR] Lazy-registering on-chain failed: {e}")
+
         # Build transaction bytes via sui client
         tx_bytes, estimated_gas = sui_client.build_sponsored_tx_bytes(
             sender_address=sender_wallet,

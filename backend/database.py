@@ -40,7 +40,8 @@ def run_migrations(engine):
         user_columns = [
             ("hashed_password", "VARCHAR"),
             ("social_id", "VARCHAR"),
-            ("auth_method", "VARCHAR")
+            ("auth_method", "VARCHAR"),
+            ("is_registered_on_chain", "BOOLEAN")
         ]
         for col_name, col_type in user_columns:
             try:

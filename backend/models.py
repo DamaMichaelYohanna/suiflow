@@ -14,6 +14,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     social_id = Column(String, unique=True, nullable=True) # For zkLogin (Google/Apple ID)
     auth_method = Column(String, default="PHONE") # PHONE, GOOGLE
+    is_registered_on_chain = Column(Boolean, default=False)
     
     wallet = relationship("Wallet", back_populates="owner", uselist=False)
     vaults = relationship("Vault", back_populates="owner")
