@@ -40,6 +40,7 @@ class VaultSchema(BaseModel):
     id: int
     name: str
     object_id: str
+    vault_cap_id: Optional[str] = None
     balance: float = 0.0
 
     class Config:
@@ -47,6 +48,9 @@ class VaultSchema(BaseModel):
 
 class VaultCreate(BaseModel):
     name: str
+
+class VaultWithdrawRequest(BaseModel):
+    amount: float
 
 class ProgrammableRuleSchema(BaseModel):
     id: int

@@ -37,7 +37,8 @@ class Vault(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String) # e.g. "Savings", "Emergency"
-    object_id = Column(String, unique=True) # On-chain object ID
+    object_id = Column(String, unique=True) # On-chain shared Vault object ID
+    vault_cap_id = Column(String, nullable=True) # On-chain VaultCap (owned) object ID
     owner_id = Column(Integer, ForeignKey("users.id"))
     
     owner = relationship("User", back_populates="vaults")

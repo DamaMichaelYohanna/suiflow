@@ -86,6 +86,35 @@ class VaultNotifier extends StateNotifier<AsyncValue<List<Vault>>> {
       return e.toString();
     }
   }
+
+  Future<String?> withdrawFromVault(int vaultId, double amount) async {
+    final auth = ref.read(authProvider);
+    final token = auth.token;
+    if (token == null) return 'User is not authenticated';
+
+    try {
+      final response = await _dio.post(
+        '/vaults/$vaultId/withdraw',
+        data: {'amount': amount},
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+        ),
+      );
+      // Refresh vault list after withdrawal
+      await fetchVaults();
+      return null;
+    } catch (e) {
+      print('Error withdrawing from vault: $e');
+      if (e is DioException) {
+        final data = e.response?.data;
+        if (data is Map && data.containsKey('detail')) {
+          return data['detail'].toString();
+        }
+        return e.message;
+      }
+      return e.toString();
+    }
+  }
 }
 
 final vaultProvider = StateNotifierProvider<VaultNotifier, AsyncValue<List<Vault>>>((ref) {

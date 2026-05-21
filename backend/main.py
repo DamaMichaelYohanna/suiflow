@@ -2,7 +2,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base, run_migrations
-from routers import auth, payments, sync, vaults, tx
+from routers import auth, payments, sync, vaults, tx, rules
 from typing import List
 import traceback
 
@@ -37,6 +37,7 @@ app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
 app.include_router(sync.router, prefix="/api/sync", tags=["sync"])
 app.include_router(vaults.router, prefix="/api/vaults", tags=["vaults"])
 app.include_router(tx.router, prefix="/api/tx", tags=["tx"])
+app.include_router(rules.router, prefix="/api/rules", tags=["rules"])
 
 @app.get("/")
 def read_root():

@@ -59,11 +59,13 @@ class PaymentOrchestratorService:
                 from services.kms_vault import decrypt_private_key
                 receiver_pk = decrypt_private_key(receiver.wallet.encrypted_keypair)
                 
-                # Create vault on-chain
-                real_vault_id = sui_client.create_vault_on_chain(
+                # Create vault on-chain (now returns dict with vault_id and vault_cap_id)
+                vault_result = sui_client.create_vault_on_chain(
                     user_address=receiver.wallet.address,
                     user_private_key=receiver_pk
                 )
+                real_vault_id = vault_result["vault_id"]
+                real_vault_cap_id = vault_result.get("vault_cap_id")
                 
                 # Update database
                 vault = db.query(models.Vault).filter(
@@ -72,6 +74,7 @@ class PaymentOrchestratorService:
                 ).first()
                 if vault:
                     vault.object_id = real_vault_id
+                    vault.vault_cap_id = real_vault_cap_id
                     db.commit()
                     receiver_vault_id = real_vault_id
                     print(f"[ORCHESTRATOR] Successfully migrated mock vault to on-chain object {real_vault_id}")

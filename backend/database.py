@@ -68,3 +68,15 @@ def run_migrations(engine):
             except Exception:
                 conn.rollback()
 
+        # Columns to ensure in 'vaults' table
+        vault_columns = [
+            ("vault_cap_id", "VARCHAR"),
+        ]
+        for col_name, col_type in vault_columns:
+            try:
+                conn.execute(text(f"ALTER TABLE vaults ADD COLUMN {col_name} {col_type}"))
+                conn.commit()
+                print(f"[MIGRATION] Added column vaults.{col_name}")
+            except Exception:
+                conn.rollback()
+
