@@ -63,6 +63,30 @@ def list_vaults(
         v.balance = sui_client.get_vault_balance(v.object_id)
     return current_user.vaults
 
+@router.delete("/{vault_id}")
+def delete_vault(
+    vault_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Delete a vault and any programmable rules targeting it."""
+    vault = db.query(models.Vault).filter(
+        models.Vault.id == vault_id,
+        models.Vault.owner_id == current_user.id
+    ).first()
+    
+    if not vault:
+        raise HTTPException(status_code=404, detail="Vault not found")
+    
+    # Cascade: delete any rules targeting this vault
+    db.query(models.ProgrammableRule).filter(
+        models.ProgrammableRule.target_vault_id == vault_id
+    ).delete()
+    
+    db.delete(vault)
+    db.commit()
+    return {"status": "deleted", "vault_id": vault_id}
+
 @router.post("/{vault_id}/withdraw")
 def withdraw_from_vault(
     vault_id: int,
