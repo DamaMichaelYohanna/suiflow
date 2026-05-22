@@ -115,6 +115,33 @@ class VaultNotifier extends StateNotifier<AsyncValue<List<Vault>>> {
       return e.toString();
     }
   }
+  Future<String?> deleteVault(int vaultId) async {
+    final auth = ref.read(authProvider);
+    final token = auth.token;
+    if (token == null) return 'User is not authenticated';
+
+    try {
+      await _dio.delete(
+        '/vaults/$vaultId',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+        ),
+      );
+      // Refresh the list after deletion
+      await fetchVaults();
+      return null;
+    } catch (e) {
+      print('Error deleting vault: $e');
+      if (e is DioException) {
+        final data = e.response?.data;
+        if (data is Map && data.containsKey('detail')) {
+          return data['detail'].toString();
+        }
+        return e.message;
+      }
+      return e.toString();
+    }
+  }
 }
 
 final vaultProvider = StateNotifierProvider<VaultNotifier, AsyncValue<List<Vault>>>((ref) {

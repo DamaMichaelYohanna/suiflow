@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/ui/glass_container.dart';
 import '../payments/send_payment_screen.dart';
 import 'vault_provider.dart';
+import 'vault_settings_screen.dart';
+import 'rule_provider.dart';
 import 'transaction_provider.dart';
 import 'balance_provider.dart';
 import '../auth/auth_screen.dart';
@@ -164,14 +166,47 @@ class DashboardScreen extends ConsumerWidget {
                                 Icons.savings_outlined,
                               ];
                               
-                              return SizedBox(
-                                width: 160,
-                                child: _buildVaultCard(
-                                  context,
-                                  vault.name,
-                                  '\$${vault.balance.toStringAsFixed(2)}',
-                                  colors[index % colors.length],
-                                  icons[index % icons.length],
+                              final color = colors[index % colors.length];
+                              final iconData = icons[index % icons.length];
+                              return GestureDetector(
+                                onTap: () async {
+                                  final result = await Navigator.push<bool>(
+                                    context,
+                                    PageRouteBuilder(
+                                      pageBuilder: (context, animation, secondaryAnimation) =>
+                                          VaultSettingsScreen(
+                                            vault: vault,
+                                            accentColor: color,
+                                            icon: iconData,
+                                          ),
+                                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                        return SlideTransition(
+                                          position: Tween<Offset>(
+                                            begin: const Offset(1, 0),
+                                            end: Offset.zero,
+                                          ).animate(CurvedAnimation(
+                                            parent: animation,
+                                            curve: Curves.easeOutCubic,
+                                          )),
+                                          child: child,
+                                        );
+                                      },
+                                    ),
+                                  );
+                                  if (result == true) {
+                                    ref.read(vaultProvider.notifier).fetchVaults();
+                                    ref.read(ruleProvider.notifier).fetchRules();
+                                  }
+                                },
+                                child: SizedBox(
+                                  width: 160,
+                                  child: _buildVaultCard(
+                                    context,
+                                    vault.name,
+                                    '\$${vault.balance.toStringAsFixed(2)}',
+                                    color,
+                                    iconData,
+                                  ),
                                 ),
                               );
                             },
