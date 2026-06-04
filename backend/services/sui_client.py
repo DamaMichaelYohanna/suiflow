@@ -199,7 +199,7 @@ class SuiClientService:
                 type_arguments=["0x2::sui::SUI"]
             )
 
-        gas_budget = 20_000_000
+        gas_budget = 5_000_000
         txn_data = txn._build_for_execute(gas_budget=str(gas_budget))
         tx_bytes = base64.b64encode(txn_data.serialize()).decode()
 
@@ -319,7 +319,9 @@ class SuiClientService:
             type_arguments=["0x2::sui::SUI"]
         )
 
-        tx_bytes = txn.tx_bytes
+        gas_budget = 5_000_000
+        txn_data = txn._build_for_execute(gas_budget=str(gas_budget))
+        tx_bytes = base64.b64encode(txn_data.serialize()).decode()
         sponsor_sig = self.sign_as_sponsor(tx_bytes)
 
         # Temporarily register user keypair in config if needed to sign
@@ -413,7 +415,9 @@ class SuiClientService:
             type_arguments=["0x2::sui::SUI"]
         )
 
-        tx_bytes = txn.tx_bytes
+        gas_budget = 5_000_000
+        txn_data = txn._build_for_execute(gas_budget=str(gas_budget))
+        tx_bytes = base64.b64encode(txn_data.serialize()).decode()
         sponsor_sig = self.sign_as_sponsor(tx_bytes)
 
         # Register user keypair if needed

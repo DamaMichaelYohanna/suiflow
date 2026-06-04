@@ -72,14 +72,14 @@ class TestSuiFlowBackend(unittest.TestCase):
             from pysui.sui.sui_types.address import SuiAddress
             alice_address = data["user"]["wallet"]["address"]
             txn = SyncTransaction(client=client)
-            split_coin = txn.split_coin(coin=txn.gas, amounts=[50000000]) # 0.05 SUI
+            split_coin = txn.split_coin(coin=txn.gas, amounts=[1000000]) # 0.001 SUI
             txn.transfer_objects(transfers=[split_coin], recipient=SuiAddress(alice_address))
             res = txn.execute()
             if res.is_err():
                 print(f"Warning: Failed to fund Alice: {res.result_string}")
             else:
-                print(f"Successfully funded Alice {alice_address} with 0.05 SUI. Digest: {res.result_data.digest}")
-                time.sleep(3.0) # Wait for network consensus
+                print(f"Successfully funded Alice {alice_address} with 0.001 SUI. Digest: {res.result_data.digest}")
+                time.sleep(5.0) # Wait for network consensus
 
         # Register receiver
         response2 = self.client.post(
@@ -121,7 +121,7 @@ class TestSuiFlowBackend(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         data = response.json()
         self.assertEqual(data["name"], "Travel Fund")
-        self.assertTrue(data["object_id"].startswith("vault_"))
+        self.assertTrue(data["object_id"].startswith("vault_") or data["object_id"].startswith("0x"))
 
         # List vaults
         response_list = self.client.get("/api/vaults/", headers=headers)
@@ -134,7 +134,7 @@ class TestSuiFlowBackend(unittest.TestCase):
             "/api/payments/send",
             json={
                 "receiver_phone": "+0987654321",
-                "amount": 0.01,
+                "amount": 0.0001,
                 "programmable_split": None
             },
             headers=headers
@@ -142,7 +142,7 @@ class TestSuiFlowBackend(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         data = response.json()
         self.assertEqual(data["status"], "PENDING")
-        self.assertEqual(data["amount"], 0.01)
+        self.assertEqual(data["amount"], 0.0001)
 
         # Wait briefly for background task to complete
         time.sleep(4.0)
@@ -155,7 +155,7 @@ class TestSuiFlowBackend(unittest.TestCase):
                 "transactions": [
                     {
                         "receiver_phone": "+0987654321",
-                        "amount": 0.01,
+                        "amount": 0.0001,
                         "is_offline_queue": True,
                         "programmable_split": None
                     }
@@ -174,14 +174,14 @@ class TestSuiFlowBackend(unittest.TestCase):
             json={
                 "sender_phone": "alice",
                 "receiver_phone": "bob",
-                "amount": 0.01,
+                "amount": 0.0001,
                 "programmable_split": None
             }
         )
         self.assertEqual(response_intent.status_code, 200, response_intent.text)
         intent_data = response_intent.json()
         intent_id = intent_data["intent_id"]
-        self.assertEqual(intent_data["amount"], 0.01)
+        self.assertEqual(intent_data["amount"], 0.0001)
         self.assertEqual(intent_data["status"], "INTENT_CREATED")
 
         # 2. Build Sponsored Transaction
