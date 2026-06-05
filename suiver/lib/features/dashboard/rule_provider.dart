@@ -7,8 +7,9 @@ import '../../core/network/config.dart';
 class RuleNotifier extends StateNotifier<AsyncValue<List<Rule>>> {
   final Ref ref;
   final Dio _dio;
+  final String? _token;
 
-  RuleNotifier(this.ref)
+  RuleNotifier(this.ref, this._token)
       : _dio = Dio(BaseOptions(baseUrl: AppConfig.baseUrl)),
         super(const AsyncValue.loading()) {
     _dio.interceptors.add(InterceptorsWrapper(
@@ -31,17 +32,19 @@ class RuleNotifier extends StateNotifier<AsyncValue<List<Rule>>> {
         return handler.next(e);
       },
     ));
-    fetchRules();
+    if (_token != null) {
+      fetchRules();
+    } else {
+      state = const AsyncValue.data([]);
+    }
   }
 
   Options _authHeaders() {
-    final token = ref.read(authProvider).token;
-    return Options(headers: {'Authorization': 'Bearer $token'});
+    return Options(headers: {'Authorization': 'Bearer $_token'});
   }
 
   Future<void> fetchRules() async {
-    final auth = ref.read(authProvider);
-    if (auth.token == null) {
+    if (_token == null) {
       state = const AsyncValue.error('User is not authenticated', StackTrace.empty);
       return;
     }
@@ -62,8 +65,7 @@ class RuleNotifier extends StateNotifier<AsyncValue<List<Rule>>> {
     required int targetVaultId,
     required double percentage,
   }) async {
-    final auth = ref.read(authProvider);
-    if (auth.token == null) return 'User is not authenticated';
+    if (_token == null) return 'User is not authenticated';
 
     try {
       await _dio.post(
@@ -88,8 +90,7 @@ class RuleNotifier extends StateNotifier<AsyncValue<List<Rule>>> {
     required int targetVaultId,
     required double percentage,
   }) async {
-    final auth = ref.read(authProvider);
-    if (auth.token == null) return 'User is not authenticated';
+    if (_token == null) return 'User is not authenticated';
 
     try {
       await _dio.put(
@@ -109,8 +110,7 @@ class RuleNotifier extends StateNotifier<AsyncValue<List<Rule>>> {
   }
 
   Future<String?> deleteRule(int ruleId) async {
-    final auth = ref.read(authProvider);
-    if (auth.token == null) return 'User is not authenticated';
+    if (_token == null) return 'User is not authenticated';
 
     try {
       await _dio.delete('/rules/$ruleId', options: _authHeaders());
@@ -122,8 +122,7 @@ class RuleNotifier extends StateNotifier<AsyncValue<List<Rule>>> {
   }
 
   Future<String?> toggleRule(int ruleId) async {
-    final auth = ref.read(authProvider);
-    if (auth.token == null) return 'User is not authenticated';
+    if (_token == null) return 'User is not authenticated';
 
     try {
       await _dio.patch('/rules/$ruleId/toggle', options: _authHeaders());
@@ -160,5 +159,7 @@ class RuleNotifier extends StateNotifier<AsyncValue<List<Rule>>> {
 }
 
 final ruleProvider = StateNotifierProvider<RuleNotifier, AsyncValue<List<Rule>>>((ref) {
-  return RuleNotifier(ref);
+  // Watch authProvider so the notifier is recreated when a different user logs in.
+  final token = ref.watch(authProvider).token;
+  return RuleNotifier(ref, token);
 });

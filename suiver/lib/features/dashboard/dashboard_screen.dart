@@ -461,13 +461,19 @@ class DashboardScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: accentColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: accentColor, size: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: accentColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: accentColor, size: 20),
+              ),
+              Icon(Icons.settings_outlined, color: Colors.white24, size: 16),
+            ],
           ),
           const SizedBox(height: 16),
           Text(title, style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w500)),
@@ -480,6 +486,7 @@ class DashboardScreen extends ConsumerWidget {
   void _showCreateVaultDialog(BuildContext context, WidgetRef ref) {
     final controller = TextEditingController();
     bool isLoading = false;
+    double allocationPercentage = 0.0;
     String? errorText;
 
     showDialog(
@@ -504,10 +511,49 @@ class DashboardScreen extends ConsumerWidget {
                   enabled: !isLoading,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
+                    labelText: 'Vault Name',
+                    labelStyle: const TextStyle(color: Colors.white54),
                     hintText: 'e.g. Rainy Day, New Car',
                     hintStyle: const TextStyle(color: Colors.white24),
                     enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
                     focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Theme.of(context).colorScheme.primary)),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Auto-Allocation Rule', style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
+                    Text(
+                      '${allocationPercentage.toStringAsFixed(0)}%',
+                      style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Diverts this % of all incoming payments automatically into this vault.',
+                  style: TextStyle(color: Colors.white30, fontSize: 11),
+                ),
+                const SizedBox(height: 8),
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    activeTrackColor: Theme.of(context).colorScheme.primary,
+                    inactiveTrackColor: Colors.white10,
+                    thumbColor: Colors.white,
+                    overlayColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                    trackHeight: 4,
+                  ),
+                  child: Slider(
+                    value: allocationPercentage,
+                    min: 0,
+                    max: 100,
+                    divisions: 20,
+                    onChanged: isLoading
+                        ? null
+                        : (val) {
+                            setState(() => allocationPercentage = val);
+                          },
                   ),
                 ),
                 if (errorText != null) ...[
@@ -536,7 +582,10 @@ class DashboardScreen extends ConsumerWidget {
                           errorText = null;
                         });
                         
-                        final err = await ref.read(vaultProvider.notifier).createVault(text);
+                        final err = await ref.read(vaultProvider.notifier).createVault(
+                          text,
+                          allocationPercentage: allocationPercentage,
+                        );
                         
                         if (context.mounted) {
                           if (err != null) {
@@ -545,6 +594,7 @@ class DashboardScreen extends ConsumerWidget {
                               errorText = err;
                             });
                           } else {
+                            ref.read(ruleProvider.notifier).fetchRules();
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('Vault created successfully!'), backgroundColor: Colors.green),

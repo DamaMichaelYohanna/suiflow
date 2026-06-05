@@ -173,27 +173,32 @@ class SuiClientService:
         if split and receiver_vault_id:
             savings_pct = int(split.get("savings", 0))
             dest_wallet = receiver_wallet_address or receiver_address
+            # savings_pct must be typed as SuiU64 so pysui BCS-encodes it as u64
+            # (a plain Python int has no size information and causes InvalidBCSBytes on-chain)
+            from pysui.sui.sui_types.scalars import SuiU64
             txn.move_call(
                 target=f"{package_id}::programmable_flows::split_to_vault_and_wallet",
                 arguments=[
                     split_coin,
                     ObjectID(receiver_vault_id),
-                    savings_pct,
+                    SuiU64(savings_pct),
                     SuiAddress(dest_wallet)
                 ],
                 type_arguments=["0x2::sui::SUI"]
             )
         else:
+            # Both intent_id and phone must be vector<u8> in Move — encode as byte lists.
             intent_id_str = f"intent_{uuid.uuid4().hex[:12]}"
-            phone_bytes = receiver_address.encode('utf-8')
+            intent_id_bytes = list(intent_id_str.encode('utf-8'))
+            phone_bytes = list(receiver_address.encode('utf-8'))
             txn.move_call(
                 target=f"{package_id}::payment::send_payment",
                 arguments=[
                     asset_whitelist_id,
                     payment_store_id,
                     registry_id,
-                    intent_id_str,
-                    list(phone_bytes),
+                    intent_id_bytes,
+                    phone_bytes,
                     split_coin
                 ],
                 type_arguments=["0x2::sui::SUI"]

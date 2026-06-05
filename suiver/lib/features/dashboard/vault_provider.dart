@@ -7,8 +7,9 @@ import '../../core/network/config.dart';
 class VaultNotifier extends StateNotifier<AsyncValue<List<Vault>>> {
   final Ref ref;
   final Dio _dio;
+  final String? _token;
 
-  VaultNotifier(this.ref)
+  VaultNotifier(this.ref, this._token)
       : _dio = Dio(BaseOptions(baseUrl: AppConfig.baseUrl)),
         super(const AsyncValue.loading()) {
     _dio.interceptors.add(InterceptorsWrapper(
@@ -31,13 +32,15 @@ class VaultNotifier extends StateNotifier<AsyncValue<List<Vault>>> {
         return handler.next(e);
       },
     ));
-    fetchVaults();
+    if (_token != null) {
+      fetchVaults();
+    } else {
+      state = const AsyncValue.data([]);
+    }
   }
 
   Future<void> fetchVaults() async {
-    final auth = ref.read(authProvider);
-    final token = auth.token;
-    if (token == null) {
+    if (_token == null) {
       state = const AsyncValue.error('User is not authenticated', StackTrace.empty);
       return;
     }
@@ -47,7 +50,7 @@ class VaultNotifier extends StateNotifier<AsyncValue<List<Vault>>> {
       final response = await _dio.get(
         '/vaults/',
         options: Options(
-          headers: {'Authorization': 'Bearer $token'},
+          headers: {'Authorization': 'Bearer $_token'},
         ),
       );
       final List<dynamic> data = response.data;
@@ -58,19 +61,34 @@ class VaultNotifier extends StateNotifier<AsyncValue<List<Vault>>> {
     }
   }
 
-  Future<String?> createVault(String name) async {
-    final auth = ref.read(authProvider);
-    final token = auth.token;
-    if (token == null) return 'User is not authenticated';
+  Future<String?> createVault(String name, {double? allocationPercentage}) async {
+    if (_token == null) return 'User is not authenticated';
 
     try {
-      await _dio.post(
+      final response = await _dio.post(
         '/vaults/', 
         data: {'name': name},
         options: Options(
-          headers: {'Authorization': 'Bearer $token'},
+          headers: {'Authorization': 'Bearer $_token'},
         ),
       );
+      
+      final newVault = Vault.fromJson(response.data);
+      
+      if (allocationPercentage != null && allocationPercentage > 0) {
+        await _dio.post(
+          '/rules/',
+          data: {
+            'rule_type': 'salary_split',
+            'target_vault_id': newVault.id,
+            'percentage': allocationPercentage,
+          },
+          options: Options(
+            headers: {'Authorization': 'Bearer $_token'},
+          ),
+        );
+      }
+      
       // Refresh the list after creation
       await fetchVaults();
       return null;
@@ -88,16 +106,14 @@ class VaultNotifier extends StateNotifier<AsyncValue<List<Vault>>> {
   }
 
   Future<String?> withdrawFromVault(int vaultId, double amount) async {
-    final auth = ref.read(authProvider);
-    final token = auth.token;
-    if (token == null) return 'User is not authenticated';
+    if (_token == null) return 'User is not authenticated';
 
     try {
-      final response = await _dio.post(
+      await _dio.post(
         '/vaults/$vaultId/withdraw',
         data: {'amount': amount},
         options: Options(
-          headers: {'Authorization': 'Bearer $token'},
+          headers: {'Authorization': 'Bearer $_token'},
         ),
       );
       // Refresh vault list after withdrawal
@@ -115,16 +131,15 @@ class VaultNotifier extends StateNotifier<AsyncValue<List<Vault>>> {
       return e.toString();
     }
   }
+
   Future<String?> deleteVault(int vaultId) async {
-    final auth = ref.read(authProvider);
-    final token = auth.token;
-    if (token == null) return 'User is not authenticated';
+    if (_token == null) return 'User is not authenticated';
 
     try {
       await _dio.delete(
         '/vaults/$vaultId',
         options: Options(
-          headers: {'Authorization': 'Bearer $token'},
+          headers: {'Authorization': 'Bearer $_token'},
         ),
       );
       // Refresh the list after deletion
@@ -145,5 +160,9 @@ class VaultNotifier extends StateNotifier<AsyncValue<List<Vault>>> {
 }
 
 final vaultProvider = StateNotifierProvider<VaultNotifier, AsyncValue<List<Vault>>>((ref) {
-  return VaultNotifier(ref);
+  // Watch authProvider so that when a different user logs in the notifier is
+  // disposed and recreated with the new token — preventing vault data from
+  // leaking across accounts.
+  final token = ref.watch(authProvider).token;
+  return VaultNotifier(ref, token);
 });

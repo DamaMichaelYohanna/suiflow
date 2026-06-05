@@ -43,8 +43,9 @@ class TransactionItem {
 class TransactionNotifier extends StateNotifier<AsyncValue<List<TransactionItem>>> {
   final Ref ref;
   final Dio _dio;
+  final String? _token;
 
-  TransactionNotifier(this.ref)
+  TransactionNotifier(this.ref, this._token)
       : _dio = Dio(BaseOptions(baseUrl: AppConfig.baseUrl)),
         super(const AsyncValue.loading()) {
     _dio.interceptors.add(InterceptorsWrapper(
@@ -62,12 +63,15 @@ class TransactionNotifier extends StateNotifier<AsyncValue<List<TransactionItem>
         return handler.next(e);
       },
     ));
-    fetchHistory();
+    if (_token != null) {
+      fetchHistory();
+    } else {
+      state = const AsyncValue.data([]);
+    }
   }
 
   Future<void> fetchHistory() async {
-    final token = ref.read(authProvider).token;
-    if (token == null) {
+    if (_token == null) {
       state = const AsyncValue.data([]);
       return;
     }
@@ -76,7 +80,7 @@ class TransactionNotifier extends StateNotifier<AsyncValue<List<TransactionItem>
     try {
       final response = await _dio.get(
         '/payments/history',
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
+        options: Options(headers: {'Authorization': 'Bearer $_token'}),
       );
       final List<dynamic> data = response.data;
       final items = data.map((e) => TransactionItem.fromJson(e as Map<String, dynamic>)).toList();
@@ -90,5 +94,7 @@ class TransactionNotifier extends StateNotifier<AsyncValue<List<TransactionItem>
 
 final transactionProvider =
     StateNotifierProvider<TransactionNotifier, AsyncValue<List<TransactionItem>>>((ref) {
-  return TransactionNotifier(ref);
+  // Watch authProvider so the notifier is recreated when a different user logs in.
+  final token = ref.watch(authProvider).token;
+  return TransactionNotifier(ref, token);
 });
